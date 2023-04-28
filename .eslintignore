@@ -1,0 +1,7 @@
+config/
+dist/
+lib/
+types/
+scripts/
+.eslintrc.js
+index.js

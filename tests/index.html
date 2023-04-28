@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../lib/utran.js"></script>
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        function range(stop,start=0, step=1) {
+        if (stop<start){
+            let _start = stop
+            stop = start
+            start = _start
+        }
+        const array = [];
+        for (let i = start; i < stop; i += step) {
+            array.push(i);
+        }
+        return array;
+        }
+        const client = new utran.Client('ws://127.0.0.1:8080')
+        async function main() {
+             await client.start()
+            let res = await client.subscribe('good', (topic, msg) => {
+                console.log(`${topic}:-->${msg}`)
+            })
+            console.log(res)
+
+            res = await client.call('add', { args: [1, 4] })
+            console.log(res)
+            res = await client.multicall(range(10000).map((i)=>{return client.call('add', { args: [i, 0], ignore: true ,multicall:true})}))
+            console.log(res)
+
+            res = await client.call('add', { args: [1, 4] })
+            console.log(res)
+            // res = await client.unsubscribe(['good'])
+            // console.log(res)
+
+            // res = await client.exit()
+            // console.log(res)
+        }
+        main()
+
+    </script>
+</body>
+
+</html>

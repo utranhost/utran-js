@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "strictNullChecks": true, //启用严格的null检查。这将确保您不会在运行时访问未定义或null值。
+    "target": "ES5", // 指定编译后的JavaScript代码应该支持的ECMAScript版本。在这个例子中，我们将目标设置为ES5。
+    "esModuleInterop": true, // 启用对使用import导入CommonJS模块语法的支持。
+    "downlevelIteration": true, // 启用对迭代器和生成器语法的支持。
+    "noFallthroughCasesInSwitch": true, //禁止在switch语句中出现case穿透现象。避免case穿透现象，您应该在每个case分支的末尾使用break语句来显式地终止该分支
+    "noUnusedLocals": true, //禁止未使用的局部变量。
+    "noUnusedParameters": true, // 禁止未使用的函数参数。
+    "noImplicitReturns": true, //禁止函数缺少返回语句。
+    "lib": [      //在"lib"数组中，我们指定了TypeScript应该包括哪些内置库。在这个例子中，我们包括了DOM和ES2018库。
+      "dom",
+      "es2018"
+    ]
+  },
+  "include": [  //在"include"数组中，我们指定了应该包括哪些源代码文件。
+    "src/**/*.ts"
+  ]
+}
