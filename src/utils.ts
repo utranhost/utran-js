@@ -53,3 +53,23 @@ export function basicAuth (usename: string, password: string): string {
   const b = btoa(`${usename}:${password}`)
   return `Basic ${b}`
 }
+
+/**
+ * 生成区间范围内的一维数组
+ * @param stop 
+ * @param start 
+ * @param step 
+ * @returns 
+ */
+export function range(stop:number,start:number=0, step:number=1):number[] {
+  if (stop<start){
+      let _start = stop
+      stop = start
+      start = _start
+  }
+  const array:number[] = [];
+  for (let i = start; i < stop; i += step) {
+      array.push(i);
+  }
+  return array;
+  }
