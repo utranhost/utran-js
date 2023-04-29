@@ -1,4 +1,4 @@
-import { UtType, UtRequest, Futrue, FullRequestFuture, UtResponse, LoaclWaitTimoutError, UtCache, FullRequstFutureCache } from '../object'
+import { UtType, UtRequest, Futrue, FullRequestFuture, UtResponse, LoaclWaitTimoutError, ClientState, FullRequstFutureCache, UtState } from '../object'
 import { basicAuth, isErrorInstanceOf } from '../utils'
 import { UtSocket } from './socket'
 
@@ -9,7 +9,7 @@ export class Client {
   private reconnectFuture: Futrue<boolean, never, never>
   private readonly fullRequstFutureCache: FullRequstFutureCache = new FullRequstFutureCache()
   private readonly maxReconnectNum: number
-  private isconnected: boolean = false
+  private readonly state: ClientState = new ClientState(UtState.UN_START)
   constructor (url: string, usename: string = 'utranhost', password: string = 'utranhost', maxReconnectNum: number = 3) {
     const token = basicAuth(usename, password)
     this.url = `${url}?Authorization=${token}`
@@ -17,10 +17,15 @@ export class Client {
     this.maxReconnectNum = maxReconnectNum
   }
 
-  public async start (): Promise<Client> {
-    await this.socket.start()
-    this.isconnected = true
-    return this
+  public async start (): Promise<boolean> {
+    try {
+      await this.socket.start()
+      this.state.changeState(UtState.RUNING)
+      return true
+    } catch (error) {
+      this.state.changeState(UtState.CONNECT_FAILED, error)
+      return false
+    }
   }
 
   private genRequestId (): number {
@@ -32,85 +37,53 @@ export class Client {
     const self = this
     self.reconnectFuture = new Futrue<boolean, never, never>()
     console.warn(`尝试重连:${reconnectNum}/${self.maxReconnectNum}`)
+    self.state.changeState(UtState.DISCONECTION)
     new UtSocket(this.url, this.onDisconnect.bind(this)).start().then(socket => {
       // 重连成功
       self.socket = socket
-      self.isconnected = true
+      self.state.changeState(UtState.RUNING)
       faildRequest.forEach(request => {
         // 重新发起请求
-        socket.send(request).then(response => {
-          const fullRequestFuture = self.fullRequstFutureCache.pop(response.id)
-          faildRequest.pop()
-          if (fullRequestFuture !== null) {
-            fullRequestFuture.setResult(response)
-          }
-        }).catch(err => {
-          console.warn(`连接断开.\n${String(err)}`)
-        })
+        socket.send(request)
+          .then(response => {
+            // 请求发送成功
+            self.state.changeState(UtState.RUNING)
+            const fullRequestFuture = self.fullRequstFutureCache.pop(response.id)
+            if (fullRequestFuture !== null) {
+              fullRequestFuture.setResult(response)
+            }
+          })
+          .catch(err => {
+            // 请求发送失败
+            self.state.changeState(UtState.DISCONECTION)
+            console.warn(`重发[${request.requestType}]${request.id}请求失败:${String(err)}`)
+          })
       })
       self.reconnectFuture.setResult(true)
     }).catch(err => {
-      self.isconnected = false
       console.warn(`连接失败，剩余重连：${reconnectNum}/${self.maxReconnectNum}`)
       if (reconnectNum < self.maxReconnectNum) {
+        self.state.changeState(UtState.RECONNECTING)
         reconnectNum++
         setTimeout(() => {
           self.onDisconnect(faildRequest, reconnectNum)
         }, 1000 * Math.log(reconnectNum) * 2)
       } else {
-        self.fullRequstFutureCache.setAllRequest2Faild('请求发送失败，连接已断开.')
+        self.state.changeState(UtState.RECONNECT_FAILDE)
+        self.fullRequstFutureCache.setAllRequest2Faild(`请求发送失败，原因:${self.state.getMsg()}`)
         self.reconnectFuture.setResult(false)
         console.error(`连接失败，结束重连.\n${String(err)}`)
       }
     })
   }
 
-  // private onDisconnect (error: string): void {
-  //     const self = this
-  //     self.reconnectFuture = self.reconnectFuture.isPending ? self.reconnectFuture : new Futrue<boolean, never, never>()
-  //     setTimeout(() => {
-  //       console.warn(error)
-  //       self.isruning = false
-  //       if (!self.isSafeExit) {
-  //         console.warn(`尝试重连:${self.reconnectNum}/${self.maxReconnectNum}`)
-  //         if (self.reconnectNum === self.maxReconnectNum) {
-  //           self.reconnectNum = 0
-  //           self.reconnectFuture.setResult(false)
-  //           console.error('重连失败.')
-  //           self.offAllListener() // 清除所有的监听
-  //           self.reconnectFaildCallback()
-  //           self.isSafeExit = true
-  //         } else {
-  //           self.start().then(() => {
-  //             self.reconnectNum = 0
-  //             self.reconnectFuture.setResult(true)
-  //             console.log('重连成功！')
-  //             self.reconnectSuccessCallback()
-  //             self.FullRequstFutureCache.clear().forEach((fullreqFutrue) => {
-  //               fullreqFutrue.setError(new RequestBreakError('请求失败，连接非安全退出而中断', fullreqFutrue.getSource()))
-  //             })
-  //           }).catch((err) => {
-  //             self.reconnectNum++
-  //             console.warn(`连接失败，剩余重连：${self.reconnectNum}/${self.maxReconnectNum}`)
-  //             self.onDisconnect(err)
-  //           })
-  //         }
-  //       }
-  //       if (self.isSafeExit) {
-  //         self.FullRequstFutureCache.clear().forEach((fullreqFutrue) => {
-  //           fullreqFutrue.setError(new RequestFaildError('请求失败，Socket已经关闭', fullreqFutrue.getSource()))
-  //         })
-  //         self.offAllListener() // 清除所有的监听
-  //       }
-  //     }, 1000 * Math.log(self.reconnectNum) * 2)
-  //   }
-
+  
   public async call (methodName: string, { args = [], dicts = {}, timeout = undefined }: {args: any[], dicts: object, timeout?: number}): Promise<UtResponse> {
     const id = this.genRequestId()
     const requestType = UtType.RPC
     const fullreqFutrue = new FullRequestFuture({ id, requestType, methodName, args, dicts, timeout })
-    if (!this.isconnected) {
-      return fullreqFutrue.setRequest2Faild('请求发送失败,未连接.')
+    if (this.state.getState() !== UtState.RUNING) {
+      return fullreqFutrue.setRequest2Faild(`请求发送失败，原因:${this.state.getMsg()}`)
     }
     this.fullRequstFutureCache.push(id, fullreqFutrue)
     try {
@@ -120,7 +93,8 @@ export class Client {
       return response
     } catch (error) {
       if (isErrorInstanceOf(error, LoaclWaitTimoutError)) {
-        throw error
+        this.fullRequstFutureCache.pop(id)
+        return fullreqFutrue.setRequest2Faild(`${this.state.getMsg()}`)
       }
       return await fullreqFutrue.getResult()
     }
