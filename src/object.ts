@@ -127,6 +127,18 @@ export class FullRequestFuture extends Futrue<UtResponse, never, FullRequest> {
     this.setResult(response)
     return response
   }
+  getFullRequest(): FullRequest{
+    return this.getSource()
+  }
+
+  getUtRequest(): UtRequest{
+    const copy:FullRequest = JSON.parse(JSON.stringify(this.getFullRequest())) 
+    if (copy.timeout===undefined){
+      return copy
+    }
+    delete copy.timeout
+    return copy
+  }
 }
 
 export class UtCache<T> {
@@ -175,6 +187,12 @@ export class FullRequstFutureCache extends UtCache<FullRequestFuture> {
   setAllRequest2Faild (errMsg: string): void {
     this.clear().forEach((fullRequestFuture) => {
       fullRequestFuture.setRequest2Faild(errMsg)
+    })
+  }
+
+  getAllUtRequest(): UtRequest[]{
+    return this.getAllData().map(fullRequestFuture=>{
+      return fullRequestFuture.getUtRequest()
     })
   }
 }
