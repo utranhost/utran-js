@@ -28,6 +28,16 @@ export interface UtRequest {
 
 export interface FullRequest extends UtRequest{timeout?: number}
 
+export function fullRequestConvert2UtRequest(fullrequest:FullRequest){
+  const copy:FullRequest = JSON.parse(JSON.stringify(fullrequest)) 
+  if (copy.timeout===undefined){
+    return copy
+  }
+  delete copy.timeout
+  return copy
+}
+
+
 export class FutrueError extends Error {
   constructor (err: string) {
     super(err)
@@ -132,12 +142,7 @@ export class FullRequestFuture extends Futrue<UtResponse, never, FullRequest> {
   }
 
   getUtRequest(): UtRequest{
-    const copy:FullRequest = JSON.parse(JSON.stringify(this.getFullRequest())) 
-    if (copy.timeout===undefined){
-      return copy
-    }
-    delete copy.timeout
-    return copy
+    return fullRequestConvert2UtRequest(this.getFullRequest())
   }
 }
 
