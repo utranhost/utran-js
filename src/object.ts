@@ -26,6 +26,8 @@ export interface UtRequest {
   msg?: any
 }
 
+export interface FullRequest extends UtRequest{timeout?: number}
+
 export class FutrueError extends Error {
   constructor (err: string) {
     super(err)
@@ -117,22 +119,30 @@ export class ConnectionFaildError extends Error {
 }
 
 export class RequestFuture extends Futrue<UtResponse, RequestFaildError | RequestBreakError | LoaclWaitTimoutError, UtRequest> {}
+export class FullRequestFuture extends Futrue<UtResponse, never, FullRequest> {
+  setRequest2Faild (errMsg: string): UtResponse {
+    const fullRequest = this.getSource()
+    const { id, requestType, methodName } = fullRequest
+    const response: UtResponse = { id, responseType: requestType, state: 0, methodName, error: errMsg }
+    this.setResult(response)
+    return response
+  }
+}
 
-export class ResultQue {
+export class UtCache<T> {
   private data: object
-  constructor () {
+  private readonly name: string
+  constructor (name: string = 'Cache') {
+    this.name = name
     this.data = {}
   }
 
-  push (...requestFuture: RequestFuture[]): void {
-    requestFuture.forEach((r) => {
-      const id = r.getSource().id
-      if (this.data[id] !== undefined) console.warn(`<ResultQue>:requestFuture[${id}] is overwritten`)
-      this.data[id] = r
-    })
+  push (id: number, value: T): void {
+    if (this.data[id] !== undefined) console.warn(`<${this.name}[${id}]>: is overwritten!`)
+    this.data[id] = value
   }
 
-  pop (id: number): RequestFuture | null {
+  pop (id: number): T | null {
     if (this.data[id] !== undefined) {
       const res = this.data[id]
       delete this.data[id]
@@ -141,14 +151,31 @@ export class ResultQue {
     return null
   }
 
-  getAllData (): RequestFuture[] {
+  getAllData (): T[] {
     return Object.values(this.data)
   }
 
-  clear (): RequestFuture[] {
+  clear (): T[] {
     const data = Object.values(this.data)
     this.data = {}
     return data
+  }
+}
+
+export class FullRequstFutureCache extends UtCache<FullRequestFuture> {
+  constructor () {
+    super('FullRequstFutureCache')
+  }
+
+  /**
+   * 将所有的Future设置为失败响应
+   * @param errMsg
+   * @returns
+   */
+  setAllRequest2Faild (errMsg: string): void {
+    this.getAllData().forEach((fullRequestFuture) => {
+      fullRequestFuture.setRequest2Faild(errMsg)
+    })
   }
 }
 
