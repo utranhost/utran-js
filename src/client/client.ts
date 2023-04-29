@@ -35,6 +35,8 @@ export class Client {
 
   private onDisconnect (faildRequest: UtRequest[], reconnectNum: number = 0): void {
     const self = this
+    
+    faildRequest = self.fullRequstFutureCache.getAllUtRequest()
     self.reconnectFuture = new Futrue<boolean, never, never>()
     console.warn(`尝试重连:${reconnectNum}/${self.maxReconnectNum}`)
     self.state.changeState(UtState.DISCONECTION)
