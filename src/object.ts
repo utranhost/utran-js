@@ -173,10 +173,44 @@ export class FullRequstFutureCache extends UtCache<FullRequestFuture> {
    * @returns
    */
   setAllRequest2Faild (errMsg: string): void {
-    this.getAllData().forEach((fullRequestFuture) => {
+    this.clear().forEach((fullRequestFuture) => {
       fullRequestFuture.setRequest2Faild(errMsg)
     })
   }
 }
 
 export type publishCallbackType = (topic: string, msg: any) => void
+
+export enum UtState {
+  RUNING = '正常运行中',
+  DISCONECTION = '连接断开',
+  UN_START = '客户端未启动',
+  RECONNECTING = '正在重连中',
+  RECONNECT_FAILDE = '重连失败',
+  CONNECT_FAILED = '连接服务端失败'
+}
+
+export class ClientState {
+  private state: UtState
+  private extra: string
+  constructor (state: UtState, extra: string = '') {
+    this.state = state
+    this.extra = extra
+  }
+
+  public changeState (state: UtState, extra: string = ''): void {
+    this.state = state
+    this.extra = extra
+  }
+
+  public getState (): UtState {
+    return this.state
+  }
+
+  public getMsg (): string {
+    if (this.extra === '') {
+      return this.state
+    }
+    return this.state + ',' + this.extra
+  }
+}
