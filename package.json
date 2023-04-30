@@ -36,7 +36,8 @@
     "build-h5": "npm run build-h5:dev && npm run build-h5:prod",
     "build-dts": "dts-bundle-generator --no-banner true --umd-module-name utran -o types/index.d.ts src/index.ts",
     "build": "npm run lint && npm run clean && npm run build-core && npm run build-dts && npm run build-h5",
-    "test": "node tests/test.js"
+    "test": "node tests/test.js",
+    "testtemp": "tsc tests/temp.ts && node tests/temp.js"
   },
   "dependencies": {
     "@types/ws": "^8.5.4",
