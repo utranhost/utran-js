@@ -1,28 +1,43 @@
 const utran = require('../lib/utran.js')
 
-const client =  new utran.Client('ws://127.0.0.1:8080')
+function range(stop,start=0, step=1) {
+    if (stop<start){
+        let _start = stop
+        stop = start
+        start = _start
+    }
+    const array = [];
+    for (let i = start; i < stop; i += step) {
+        array.push(i);
+    }
+    return array;
+}
+
+
+
+const client =  new utran.BaseClient('ws://127.0.0.1:8080')
 
 async function main(){
     await client.start()
-    // let res = await client.subscribe('good',(topic,msg)=>{
-    //     console.log(`${topic}:-->${msg}`)
-    // })
-    // console.log(res)
+    let res = await client.subscribe('good',(topic,msg)=>{
+        console.log(`${topic}:-->${msg}`)
+    })
 
-    let res = await client.call('add',{args:[1,0]})
     console.log(res)
 
-    res = await client.call('add',{args:[1,1]})
+    res = await client.sendRequest({id:client.genRequestId(),requestType:'rpc',methodName:'add',args:[1,0],dicts:{}})
     console.log(res)
 
-    res = await client.call('add',{args:[1,2]})
+    res = await client.sendRequest({id:client.genRequestId(),requestType:'rpc',methodName:'add',args:[2,0],dicts:{}})
     console.log(res)
 
-    res = await client.call('add',{args:[1,3]})
+    res = await client.sendRequest({id:client.genRequestId(),requestType:'rpc',methodName:'add',args:[3,0],dicts:{}})
     console.log(res)
 
-    res = await client.call('add',{args:[1,4]})
+    res = await client.unsubscribe(['good'])
     console.log(res)
+
+    client.exit()
     // res = await client.multicall([client.call('addt',{args:[1,0],ignore:true}),client.call('add',{args:[1,1]})])
     // console.log(res)
 
@@ -35,6 +50,9 @@ async function main(){
 
 main()
 
+
+
+// # UtSocket
 // const soket = utran.UtSocket('ws://127.0.0.1:8080')
 // async function main(){
 //     // try {
