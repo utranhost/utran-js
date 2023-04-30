@@ -7,6 +7,15 @@ export enum UtType {
   PUBLISH = 'publish',
 }
 
+export interface SubscribeResult{
+  allTopics: string[]
+  subTopics: string[]
+}
+
+export interface UnSubscribeResult{
+  allTopics: string[]
+  unSubTopics: string[]
+}
 export interface UtResponse {
   id: number
   responseType: UtType
@@ -33,21 +42,19 @@ export interface UtRpcPrameter{
 
 export interface FullRequest extends UtRequest{timeout?: number}
 
-
 /**
  * FullRequest转UtRequest
- * @param fullrequest 
- * @returns 
+ * @param fullrequest
+ * @returns
  */
-export function fullRequestConvert2UtRequest(fullrequest:FullRequest): UtRequest{
-  const copy:FullRequest = JSON.parse(JSON.stringify(fullrequest)) 
-  if (copy.timeout===undefined){
+export function fullRequestConvert2UtRequest (fullrequest: FullRequest): UtRequest {
+  const copy: FullRequest = JSON.parse(JSON.stringify(fullrequest))
+  if (copy.timeout === undefined) {
     return copy
   }
   delete copy.timeout
   return copy
 }
-
 
 export class FutrueError extends Error {
   constructor (err: string) {
@@ -105,6 +112,14 @@ export class Futrue<ReslutType, ErrorType, SourceType=any> {
   }
 }
 
+export class RequestParamError extends Error {
+  public readonly request: UtRequest
+  constructor (err: string, request: UtRequest) {
+    super(err)
+    this.name = 'RequestParamError'
+    this.request = request
+  }
+}
 export class RequestFaildError extends Error {
   public readonly request: UtRequest
   constructor (err: string, request: UtRequest) {
@@ -139,20 +154,27 @@ export class ConnectionFaildError extends Error {
   }
 }
 
-export class RequestFuture extends Futrue<UtResponse, RequestFaildError | RequestBreakError | LoaclWaitTimoutError, UtRequest> {}
+export class RequestFuture extends Futrue<UtResponse, RequestFaildError | RequestBreakError | LoaclWaitTimoutError | RequestParamError, UtRequest> {}
 export class FullRequestFuture extends Futrue<UtResponse, never, FullRequest> {
   setRequest2Faild (errMsg: string): UtResponse {
     const fullRequest = this.getSource()
-    const { id, requestType, methodName } = fullRequest
-    const response: UtResponse = { id, responseType: requestType, state: 0, methodName, error: errMsg }
+    let response: UtResponse
+    if (fullRequest.requestType === UtType.RPC) {
+      const { id, requestType, methodName } = fullRequest
+      response = { id, responseType: requestType, state: 0, methodName, error: errMsg }
+    } else {
+      const { id, requestType } = fullRequest
+      response = { id, responseType: requestType, state: 0, error: errMsg }
+    }
     this.setResult(response)
     return response
   }
-  getFullRequest(): FullRequest{
+
+  getFullRequest (): FullRequest {
     return this.getSource()
   }
 
-  getUtRequest(): UtRequest{
+  getUtRequest (): UtRequest {
     return fullRequestConvert2UtRequest(this.getFullRequest())
   }
 }
@@ -206,8 +228,8 @@ export class FullRequstFutureCache extends UtCache<FullRequestFuture> {
     })
   }
 
-  getAllUtRequest(): UtRequest[]{
-    return this.getAllData().map(fullRequestFuture=>{
+  getAllUtRequest (): UtRequest[] {
+    return this.getAllData().map(fullRequestFuture => {
       return fullRequestFuture.getUtRequest()
     })
   }
@@ -246,5 +268,38 @@ export class ClientState {
       return this.state
     }
     return this.state + ',' + this.extra
+  }
+}
+
+export class TopicHandlerCollection {
+  protected readonly handler: publishCallbackType[] = []
+  protected readonly topics: string[] = []
+
+  public add (...items: Array<[string, publishCallbackType]>): void {
+    const self = this
+    items.forEach(function (e) {
+      self.topics.push(e[0])
+      self.handler.push(e[1])
+    })
+  }
+
+  public getCallback (topic: string): publishCallbackType[] {
+    const self = this
+    return self.handler.filter((_, index) => topic === self.topics[index])
+  }
+
+  public getAllTopics (): string[] {
+    return this.topics
+  }
+
+  public remove (topic: string): void {
+    const n = this.topics.length
+    const self = this
+    for (let i = n - 1; i >= 0; i--) {
+      if (self.topics[i] === topic) {
+        self.topics.splice(i, 1)
+        self.handler.splice(i, 1)
+      }
+    }
   }
 }
