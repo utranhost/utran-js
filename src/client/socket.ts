@@ -20,7 +20,7 @@ class TopicHandlerCollection {
     })
   }
 
-  public get (topic: string): publishCallbackType[] {
+  public getCallback (topic: string): publishCallbackType[] {
     const self = this
     return self.handler.filter((_, index) => topic === self.topics[index])
   }
@@ -203,7 +203,7 @@ export class UtSocket {
     const response: UtResponse = JSON.parse(data)
     if (response.responseType === UtType.PUBLISH) {
       const { topic, msg } = response.result
-      this.topicHandlers.get(topic).forEach((cb) => {
+      this.topicHandlers.getCallback(topic).forEach((cb) => {
         cb(topic, msg)
       })
     }
