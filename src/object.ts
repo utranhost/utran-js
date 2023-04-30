@@ -26,9 +26,20 @@ export interface UtRequest {
   msg?: any
 }
 
+export interface UtRpcPrameter{
+  args: any[]
+  dicts: object
+}
+
 export interface FullRequest extends UtRequest{timeout?: number}
 
-export function fullRequestConvert2UtRequest(fullrequest:FullRequest){
+
+/**
+ * FullRequest转UtRequest
+ * @param fullrequest 
+ * @returns 
+ */
+export function fullRequestConvert2UtRequest(fullrequest:FullRequest): UtRequest{
   const copy:FullRequest = JSON.parse(JSON.stringify(fullrequest)) 
   if (copy.timeout===undefined){
     return copy
