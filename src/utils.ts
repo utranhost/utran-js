@@ -1,4 +1,4 @@
-import { UtRpcPrameter } from "./object"
+import { RequestParamError, UtRequest, UtRpcPrameter, UtType } from './object'
 
 export function isErrorInstanceOf<ErrorType extends Error> (error: any, errorType: new (...args) => ErrorType): boolean {
   if (typeof error === 'object' && 'name' in error) {
@@ -57,46 +57,79 @@ export function basicAuth (usename: string, password: string): string {
 
 /**
  * 生成区间范围内的一维数组
- * @param stop 
- * @param start 
- * @param step 
- * @returns 
+ * @param stop
+ * @param start
+ * @param step
+ * @returns
  */
-export function range(stop:number,start:number=0, step:number=1):number[] {
-  if (stop<start){
-      let _start = stop
-      stop = start
-      start = _start
+export function range (stop: number, start: number = 0, step: number = 1): number[] {
+  if (stop < start) {
+    const _start = stop
+    stop = start
+    start = _start
   }
-  const array:number[] = [];
+  const array: number[] = []
   for (let i = start; i < stop; i += step) {
-      array.push(i);
+    array.push(i)
   }
-  return array;
-  }
-
+  return array
+}
 
 /**
  * 参数解构,返回请求所需的参数,args和dicts
- * @param params 
- * @returns 
+ * @param params
+ * @returns
  */
-export function ParameterDeconstruction(...params:any[]):UtRpcPrameter{
-  const p = {...params}
+export function ParameterDeconstruction (...params: any[]): UtRpcPrameter {
+  const p = { ...params }
   const keys = Object.keys(p)
-  let args:Array<any> = []
-  let dicts:object = {}
-  keys.forEach((key,index)=>{
+  const args: any[] = []
+  const dicts: object = {}
+  keys.forEach((key, index) => {
     const param = p[key]
-    if(parseInt(key) === index){
-        if(typeof param === "object"){
-        Object.assign(dicts,param)
-        }else{
+    if (parseInt(key) === index) {
+      if (typeof param === 'object') {
+        Object.assign(dicts, param)
+      } else {
         args.push(param)
-        }
-    }else{
+      }
+    } else {
       dicts[key] = param
     }
   })
-  return {args,dicts}
+  return { args, dicts }
+}
+
+const UtTypeValues = Object.values(UtType)
+/**
+ * 检查请求体
+ * @param request
+ * @returns
+ */
+export function checkRequstIsError (request: UtRequest): RequestParamError | null {
+  if (typeof request.id !== 'number') {
+    return new RequestParamError('请求体必需包含"id"字段,且必须是number', request)
+  }
+  if (!UtTypeValues.includes(request.requestType)) {
+    return new RequestParamError(`请求体必需包含"requestType"字段,且值必须是[${UtTypeValues.toString()}]其中之一.`, request)
+  }
+  const requestType = request.requestType
+  if (requestType === UtType.RPC) {
+    if (!('methodName' in request)) {
+      return new RequestParamError(`${UtType.RPC}请求必须有"methodName"字段.`, request)
+    }
+    if (!('args' in request)) {
+      return new RequestParamError(`${UtType.RPC}请求必须有"args"字段.`, request)
+    }
+    if (!('dicts' in request)) {
+      return new RequestParamError(`${UtType.RPC}请求必须有"dicts"字段.`, request)
+    }
+    return null
+  } else if ((requestType === UtType.SUBSCRIBE) || (requestType === UtType.UNSUBSCRIBE)) {
+    if (!('topics' in request)) {
+      return new RequestParamError(`${request.requestType}请求必须有"topics"字段.`, request)
+    }
+    return null
+  }
+  return null
 }
