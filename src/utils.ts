@@ -1,3 +1,4 @@
+import { UtRpcPrameter } from "./object"
 
 export function isErrorInstanceOf<ErrorType extends Error> (error: any, errorType: new (...args) => ErrorType): boolean {
   if (typeof error === 'object' && 'name' in error) {
@@ -73,3 +74,29 @@ export function range(stop:number,start:number=0, step:number=1):number[] {
   }
   return array;
   }
+
+
+/**
+ * 参数解构,返回请求所需的参数,args和dicts
+ * @param params 
+ * @returns 
+ */
+export function ParameterDeconstruction(...params:any[]):UtRpcPrameter{
+  const p = {...params}
+  const keys = Object.keys(p)
+  let args:Array<any> = []
+  let dicts:object = {}
+  keys.forEach((key,index)=>{
+    const param = p[key]
+    if(parseInt(key) === index){
+        if(typeof param === "object"){
+        Object.assign(dicts,param)
+        }else{
+        args.push(param)
+        }
+    }else{
+      dicts[key] = param
+    }
+  })
+  return {args,dicts}
+}
