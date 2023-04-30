@@ -36,7 +36,7 @@ class TopicHandlerCollection {
   }
 }
 
-export type disconnectCallbackType = (requests: UtRequest[]) => void
+export type disconnectCallbackType = (isSafeExit: boolean) => void
 
 export class UtSocket {
   private soket: WebSocket
@@ -146,7 +146,7 @@ export class UtSocket {
       }
       self.isruning = false
       self.offAllListener() // 清除所有的监听
-      self.disconnectCallback(requestFutures.map(requestFuture => { return requestFuture.getSource() }))
+      self.disconnectCallback(self.isSafeExit)
     })
   }
 
