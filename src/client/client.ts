@@ -1,8 +1,9 @@
-import { UtType, UtRequest, Futrue, FullRequestFuture, UtResponse, LoaclWaitTimoutError, ClientState, FullRequstFutureCache, UtState } from '../object'
+import { UtType, UtRequest, Futrue, FullRequestFuture, UtResponse, LoaclWaitTimoutError, ClientState, FullRequstFutureCache, UtState, FullRequest } from '../object'
 import { basicAuth, isErrorInstanceOf } from '../utils'
 import { UtSocket } from './socket'
 
-export class Client {
+
+export class BaseClient {
   private socket: UtSocket
   private readonly url: string
   private requestId: number = 0
@@ -33,11 +34,18 @@ export class Client {
     return this.requestId
   }
 
-  private onDisconnect (faildRequest: UtRequest[], reconnectNum: number = 0): void {
+  private onDisconnect (isSafeExit:boolean, reconnectNum: number = 0): void {    
     const self = this
-    
-    faildRequest = self.fullRequstFutureCache.getAllUtRequest()
+    const faildRequest = self.fullRequstFutureCache.getAllUtRequest()
     self.reconnectFuture = new Futrue<boolean, never, never>()
+    if(isSafeExit){
+      // 安全退出
+      self.state.changeState(UtState.RECONNECT_FAILDE)
+      self.fullRequstFutureCache.setAllRequest2Faild(`请求发送失败，原因:执行安全退出`)
+      self.reconnectFuture.setResult(false)      
+      return
+    }
+    
     console.warn(`尝试重连:${reconnectNum}/${self.maxReconnectNum}`)
     self.state.changeState(UtState.DISCONECTION)
     new UtSocket(this.url, this.onDisconnect.bind(this)).start().then(socket => {
@@ -68,7 +76,7 @@ export class Client {
         self.state.changeState(UtState.RECONNECTING)
         reconnectNum++
         setTimeout(() => {
-          self.onDisconnect(faildRequest, reconnectNum)
+          self.onDisconnect(false, reconnectNum)
         }, 1000 * Math.log(reconnectNum) * 2)
       } else {
         self.state.changeState(UtState.RECONNECT_FAILDE)
@@ -80,16 +88,15 @@ export class Client {
   }
 
   
-  public async call (methodName: string, { args = [], dicts = {}, timeout = undefined }: {args: any[], dicts: object, timeout?: number}): Promise<UtResponse> {
+  public async sendRequest (fullRequest:FullRequest): Promise<UtResponse> {
     const id = this.genRequestId()
-    const requestType = UtType.RPC
-    const fullreqFutrue = new FullRequestFuture({ id, requestType, methodName, args, dicts, timeout })
+    const fullreqFutrue = new FullRequestFuture(fullRequest)
     if (this.state.getState() !== UtState.RUNING) {
       return fullreqFutrue.setRequest2Faild(`请求发送失败，原因:${this.state.getMsg()}`)
     }
     this.fullRequstFutureCache.push(id, fullreqFutrue)
     try {
-      const response = await this.socket.send({ id, requestType, methodName, args, dicts }, timeout)
+      const response = await this.socket.send(fullreqFutrue.getUtRequest(), fullRequest.timeout)
       fullreqFutrue.setResult(response)
       this.fullRequstFutureCache.pop(id)
       return response
@@ -102,9 +109,35 @@ export class Client {
     }
   }
 
-  // public async multicall (...calls: Array<Client['call']>): Promise<any> {
-  //   if (!this.isruning) await this.holdingReconnect
-  //   return await this.bsclient.multicall(calls)
+  public exit(){
+    try {
+      this.socket.exit()
+    } catch (error) {
+      this.onDisconnect(true)
+    }
+    console.log(`安全退出.`)
+  }
+}
+
+
+
+class Clien{
+    // public async multicall (timeout?:number,...requests: UtRequest[]): Promise<UtResponse[]> {
+  //   const self = this
+  //   const id = this.genRequestId()
+  //   const fullreqFutrue = new FullRequestFuture({ id, requestType, methodName, args, dicts, timeout })
+  //   const calls = requests.map(request=>{
+  //     return self.socket.send(request)
+  //   })
+  //   try {
+  //     const responses = await Promise.all(calls)
+
+  //     return responses
+  //   } catch (error) {
+  //     console.error(error)
+  //   }
+    
+
   // }
 
   // public async subscribe (topic: string, callback: (topic: string, msg: any) => void): Promise<any> {
