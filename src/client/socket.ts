@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import { UtRequest, UtResponse, publishCallbackType, UtType, RequestFaildError, RequestFuture, Futrue, ConnectionFaildError, RequestBreakError, LoaclWaitTimoutError, UtCache } from '../object'
-import { toBuffer, BufferToString, isNodePlatform } from '../utils'
+import { toBuffer, BufferToString, isNodePlatform, checkRequstIsError } from '../utils'
 
 class RequestFutureCache extends UtCache<RequestFuture> {
   constructor () {
@@ -8,35 +8,7 @@ class RequestFutureCache extends UtCache<RequestFuture> {
   }
 }
 
-class TopicHandlerCollection {
-  protected readonly handler: publishCallbackType[]
-  protected readonly topics: string[]
-
-  public add (...items: Array<[string, publishCallbackType]>): void {
-    const self = this
-    items.forEach(function (e) {
-      self.topics.push(e[0])
-      self.handler.push(e[1])
-    })
-  }
-
-  public getCallback (topic: string): publishCallbackType[] {
-    const self = this
-    return self.handler.filter((_, index) => topic === self.topics[index])
-  }
-
-  public remove (topic: string): void {
-    const n = this.topics.length
-    for (let i = n - 1; i >= 0; i--) {
-      if (this.topics[i] === topic) {
-        this.topics.splice(i, 1)
-        this.handler.splice(i, 1)
-      }
-    }
-  }
-}
-
-export type disconnectCallbackType = (isSafeExit: boolean) => void
+type disconnectCallbackType = (isSafeExit: boolean) => void
 
 export class UtSocket {
   private soket: WebSocket
@@ -45,16 +17,17 @@ export class UtSocket {
   private readonly allOpenListener: Array<(e: WebSocket.Event) => void> = []
   private readonly allCloseListener: Array<(e: WebSocket.CloseEvent) => void> = []
   private readonly allErrorListener: Array<(e: WebSocket.ErrorEvent) => void> = []
-  private readonly topicHandlers: TopicHandlerCollection = new TopicHandlerCollection()
   private readonly url: string
+  private readonly disconnectCallback: disconnectCallbackType
+  private readonly publishCallback: publishCallbackType
   protected isruning: boolean = false
   protected isSafeExit: boolean = false
   protected startFutrue: Futrue<UtSocket, ConnectionFaildError>
   public readonly isNodePlatform: boolean = isNodePlatform()
-  public readonly disconnectCallback: disconnectCallbackType
-  constructor (url: string, disconnectCallback: disconnectCallbackType = () => {}) {
+  constructor (url: string, disconnectCallback: disconnectCallbackType = () => {}, publishCallback: publishCallbackType = () => {}) {
     this.url = url
     this.disconnectCallback = disconnectCallback
+    this.publishCallback = publishCallback
   }
 
   public getState (): boolean {
@@ -106,6 +79,11 @@ export class UtSocket {
   public async send (request: UtRequest, timeout?: number): Promise<UtResponse> {
     const reqFutrue = new RequestFuture(request)
     this.requestFutureCahe.push(request.id, reqFutrue)
+    const paramError = checkRequstIsError(request)
+    if (paramError !== null) {
+      reqFutrue.setError(paramError)
+      return await reqFutrue.getResult()
+    }
     this.soket.send(toBuffer(request))
 
     if (typeof timeout === 'number') {
@@ -203,9 +181,7 @@ export class UtSocket {
     const response: UtResponse = JSON.parse(data)
     if (response.responseType === UtType.PUBLISH) {
       const { topic, msg } = response.result
-      this.topicHandlers.getCallback(topic).forEach((cb) => {
-        cb(topic, msg)
-      })
+      this.publishCallback(topic, msg)
     }
     if ([UtType.RPC, UtType.SUBSCRIBE, UtType.UNSUBSCRIBE].includes(response.responseType)) {
       const reqFutrue = this.requestFutureCahe.pop(response.id)
