@@ -80,7 +80,7 @@ export function range (stop: number, start: number = 0, step: number = 1): numbe
  * @param params
  * @returns
  */
-export function ParameterDeconstruction (...params: any[]): UtRpcPrameter {
+export function parameterDeconstruction (...params: any[]): UtRpcPrameter {
   const p = { ...params }
   const keys = Object.keys(p)
   const args: any[] = []
