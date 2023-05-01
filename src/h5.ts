@@ -1,2 +1,4 @@
-// import { Client } from './index'
-// export { Client }
+import { version } from './index'
+import { Client } from './client/proxy'
+
+export { version, Client }

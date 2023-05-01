@@ -11,39 +11,59 @@
 
 <body>
     <script>
-        function range(stop,start=0, step=1) {
-        if (stop<start){
-            let _start = stop
-            stop = start
-            start = _start
-        }
-        const array = [];
-        for (let i = start; i < stop; i += step) {
-            array.push(i);
-        }
-        return array;
+        function range(stop, start = 0, step = 1) {
+            if (stop < start) {
+                let _start = stop
+                stop = start
+                start = _start
+            }
+            const array = [];
+            for (let i = start; i < stop; i += step) {
+                array.push(i);
+            }
+            return array;
         }
         const client = new utran.Client('ws://127.0.0.1:8080')
+
         async function main() {
-             await client.start()
+            await client.start()
             let res = await client.subscribe('good', (topic, msg) => {
                 console.log(`${topic}:-->${msg}`)
             })
             console.log(res)
 
-            res = await client.call('add', { args: [1, 4] })
-            console.log(res)
-            res = await client.multicall(range(10000).map((i)=>{return client.call('add', { args: [i, 0], ignore: true ,multicall:true})}))
+            res = await client.setOptions({ timeout: 2 }).callByName('add', 1, 0)
             console.log(res)
 
-            res = await client.call('add', { args: [1, 4] })
+            res = await client.call({ timeout: 2 }).add(1, 0)
             console.log(res)
+
+            res = await client.call.add(1, 1)
+            console.log(res)
+
+            res = await client.call.add(1, 2)
+            console.log(res)
+
+
+            res = await client.multicall(...range(10).map((i) => {
+                return client.call.add(0, i)
+            }))
+            console.log('multicall2', res.filter(i => i.state == 0))
+
             // res = await client.unsubscribe(['good'])
             // console.log(res)
 
-            // res = await client.exit()
+            // client.exit()
+            // res = await client.multicall([client.call('addt',{args:[1,0],ignore:true}),client.call('add',{args:[1,1]})])
+            // console.log(res)
+
+            // res = await client.unsubscribe(['good'])
+            // console.log(res)
+
+            // res =  await client.exit()
             // console.log(res)
         }
+
         main()
 
     </script>

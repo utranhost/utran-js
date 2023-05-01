@@ -40,10 +40,11 @@
     "testtemp": "tsc tests/temp.ts && node tests/temp.js"
   },
   "dependencies": {
-    "@types/ws": "^8.5.4",
+    "@types/ws": "^8.5.4",    
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "tslib": "^2.5.0",
     "@rollup/plugin-commonjs": "^23.0.2",
     "@rollup/plugin-eslint": "^9.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",
