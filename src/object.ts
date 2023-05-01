@@ -69,7 +69,7 @@ export class Futrue<ReslutType, ErrorType, SourceType=any> {
   private resolve: (res: ReslutType) => void
   private reject: (err: ErrorType) => void
   public readonly source!: SourceType | undefined
-  private result: ReslutType
+  public result: ReslutType
 
   constructor (source?: SourceType) {
     this.source = source
@@ -139,11 +139,9 @@ export class RequestBreakError extends Error {
 }
 
 export class LoaclWaitTimoutError extends Error {
-  public readonly request: UtRequest
-  constructor (err: string, request: UtRequest) {
+  constructor (err: string) {
     super(err)
     this.name = 'LoaclWaitTimoutError'
-    this.request = request
   }
 }
 
@@ -154,18 +152,31 @@ export class ConnectionFaildError extends Error {
   }
 }
 
-export class RequestFuture extends Futrue<UtResponse, RequestFaildError | RequestBreakError | LoaclWaitTimoutError | RequestParamError, UtRequest> {}
+function request2Faild (request: FullRequest | UtRequest, errMsg: string): UtResponse {
+  let response: UtResponse
+  if (request.requestType === UtType.RPC) {
+    const { id, requestType, methodName } = request
+    response = { id, responseType: requestType, state: 0, methodName, error: errMsg }
+  } else {
+    const { id, requestType } = request
+    response = { id, responseType: requestType, state: 0, error: errMsg }
+  }
+  return response
+}
+
+export class RequestFuture extends Futrue<UtResponse, RequestFaildError | RequestBreakError | RequestParamError, UtRequest> {
+  setRequest2Faild (errMsg: string): UtResponse {
+    const utRequest = this.getSource()
+    const response = request2Faild(utRequest, errMsg)
+    this.setResult(response)
+    return response
+  }
+}
+
 export class FullRequestFuture extends Futrue<UtResponse, never, FullRequest> {
   setRequest2Faild (errMsg: string): UtResponse {
     const fullRequest = this.getSource()
-    let response: UtResponse
-    if (fullRequest.requestType === UtType.RPC) {
-      const { id, requestType, methodName } = fullRequest
-      response = { id, responseType: requestType, state: 0, methodName, error: errMsg }
-    } else {
-      const { id, requestType } = fullRequest
-      response = { id, responseType: requestType, state: 0, error: errMsg }
-    }
+    const response = request2Faild(fullRequest, errMsg)
     this.setResult(response)
     return response
   }
