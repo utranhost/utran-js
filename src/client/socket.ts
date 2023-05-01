@@ -1,5 +1,5 @@
 import WebSocket from 'ws'
-import { UtRequest, UtResponse, publishCallbackType, UtType, RequestFaildError, RequestFuture, Futrue, ConnectionFaildError, RequestBreakError, LoaclWaitTimoutError, UtCache } from '../object'
+import { UtRequest, UtResponse, publishCallbackType, UtType, RequestFuture, Futrue, ConnectionFaildError, UtCache } from '../object'
 import { toBuffer, BufferToString, isNodePlatform, checkRequstIsError } from '../utils'
 
 class RequestFutureCache extends UtCache<RequestFuture> {
@@ -9,7 +9,7 @@ class RequestFutureCache extends UtCache<RequestFuture> {
 }
 
 type disconnectCallbackType = (isSafeExit: boolean) => void
-
+export const BreakErrorMsg = '请求失败，连接非安全退出而中断'
 export class UtSocket {
   private soket: WebSocket
   private readonly requestFutureCahe: RequestFutureCache = new RequestFutureCache()
@@ -90,7 +90,7 @@ export class UtSocket {
       const self = this
       const timer = setTimeout(() => {
         self.requestFutureCahe.pop(request.id)
-        reqFutrue.setError(new LoaclWaitTimoutError(`本地等待超时：${timeout}s`, request))
+        reqFutrue.setRequest2Faild(`本地等待超时：${timeout}s`)
       }, timeout * 1000)
 
       reqFutrue.finally(() => {
@@ -115,11 +115,13 @@ export class UtSocket {
       const requestFutures = self.requestFutureCahe.clear()
       if (self.isSafeExit) {
         self.requestFutureCahe.clear().forEach((reqFutrue) => {
-          reqFutrue.setError(new RequestFaildError('请求失败，Socket已经关闭', reqFutrue.getSource()))
+          // reqFutrue.setError(new RequestFaildError('请求失败，Socket已经关闭', reqFutrue.getSource()))
+          reqFutrue.setRequest2Faild('请求失败，Socket已执行退出关闭')
         })
       } else {
         requestFutures.forEach((reqFutrue) => {
-          reqFutrue.setError(new RequestBreakError('请求失败，连接非安全退出而中断', reqFutrue.getSource()))
+          // reqFutrue.setError(new RequestBreakError('请求失败，连接非安全退出而中断', reqFutrue.getSource()))
+          reqFutrue.setRequest2Faild(BreakErrorMsg)
         })
       }
       self.isruning = false
