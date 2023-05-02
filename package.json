@@ -10,7 +10,7 @@
     "README.md",
     "index.js",
     "types/",
-    "dist/",
+    "lib/",
     "licenses/",
     "NOTICE"
   ],
