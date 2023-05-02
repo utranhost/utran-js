@@ -56,8 +56,9 @@ function inputConfig (env,isH5=false) {
 
 function outputConfig (env, fileName,isH5=false) {
   const isSourcemap = isH5?false:env === 'development';
+  const file = isH5?paths.resolvePath(fileName, paths.buildH5Dir):paths.resolvePath(fileName, paths.buildDir)
   return {
-    file: paths.resolvePath(fileName, paths.buildDir),
+    file,
     format: 'umd',
     name: packageName,
     sourcemap: isSourcemap,

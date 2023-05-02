@@ -9,6 +9,7 @@ const resolvePath = (relativePath, rootDirectory = root) => path.resolve(rootDir
 module.exports = {
   resolvePath,
   buildDir: resolvePath('lib'),
+  buildH5Dir: resolvePath('dist'),
   index: resolvePath('src/index.ts'),
   h5: resolvePath('src/h5.ts'),
   packageJson: resolvePath('package.json')
